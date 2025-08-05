@@ -798,24 +798,31 @@ function shootEnemyBullet(enemy) {
                 height: 16 // 横長でビーム感
             });
         } else if (enemy.type === 'boss3') {
-            // ステージ3ボス：画面を覆う弾幕（30列、1箇所だけ隙間）
-            const bulletRows = 40; // 弾の行数を増やす（画面を埋め尽くす）
-            const safeZone = Math.floor(Math.random() * (bulletRows - 4)) + 2; // 隙間の位置
+            // ステージ3ボス：画面を覆う弾幕（激ムズだが5%の確率で抜けられる）
+            const bulletRows = 25; // 弾の行数
+            const safeZone = Math.floor(Math.random() * (bulletRows - 6)) + 3; // 隙間の位置
             
-            // 30列の弾を生成
+            // 波状の弾幕を生成（30列）
             for (let col = 0; col < 30; col++) {
+                // 列ごとに波打つように隙間をずらす
+                const waveOffset = Math.sin(col * 0.3) * 2; // 波の振幅
+                const adjustedSafeZone = Math.floor(safeZone + waveOffset);
+                
                 for (let row = 0; row < bulletRows; row++) {
-                    // 隙間を2行分作る
-                    if (row === safeZone || row === safeZone + 1) continue;
+                    // 隙間を3行分作る（ギリギリ通れるサイズ）
+                    if (row >= adjustedSafeZone && row <= adjustedSafeZone + 2) continue;
                     
-                    const y = GAME_CONFIG.height / bulletRows * row + 20;
+                    const y = GAME_CONFIG.height / bulletRows * row + 50;
+                    // 列ごとに少しランダムな上下のズレを加える
+                    const randomOffset = (Math.random() - 0.5) * 10;
+                    
                     enemyBullets.push({
-                        x: enemy.x - enemy.width / 2 + col * 20, // 列ごとに少しずらす（間隔を狭く）
-                        y: y,
-                        vx: -2, // スローに流れる（6→2に変更）
+                        x: enemy.x - enemy.width / 2 + col * 25, // 列ごとの間隔
+                        y: y + randomOffset,
+                        vx: -2.5 - Math.random() * 0.5, // 微妙な速度差
                         vy: 0,
-                        width: 16, // 半分の大きさ
-                        height: 16 // 半分の大きさ
+                        width: 14, // 少し小さく
+                        height: 14
                     });
                 }
             }
