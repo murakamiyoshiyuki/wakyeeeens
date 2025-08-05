@@ -168,6 +168,20 @@ function setupEventListeners() {
     
     // マウス入力（タイトル画面用）
     canvas.addEventListener('click', handleClick);
+    
+    // タイトル画面のタッチイベント
+    const titleScreen = document.getElementById('titleScreen');
+    titleScreen.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (gameState === GameState.TITLE) {
+            startGame();
+        }
+    });
+    titleScreen.addEventListener('click', () => {
+        if (gameState === GameState.TITLE) {
+            startGame();
+        }
+    });
 }
 
 // 入力処理
