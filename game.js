@@ -5,7 +5,8 @@ const GameState = {
     PAUSED: 'paused',
     GAME_OVER: 'game_over',
     ENDING: 'ending',
-    OP_ANIMATION: 'op_animation'
+    OP_ANIMATION: 'op_animation',
+    BOSS_DEFEATED: 'boss_defeated' // ボス撃破アニメーション中
 };
 
 // ゲーム設定
@@ -87,7 +88,8 @@ const soundSources = {
     speedUp: 'sozai/bgm/スピードアップ.mp3',
     powerUp: 'sozai/bgm/パワーアップ.mp3',
     explosion: 'sozai/bgm/自機爆発.mp3',
-    warning: 'sozai/bgm/警報.mp3'
+    warning: 'sozai/bgm/警報.mp3',
+    bossBigExplosion: 'sozai/bgm/boss大爆発2.mp3'
 };
 
 let currentBGM = null;
@@ -477,7 +479,7 @@ function updatePlayer() {
 
 function shootPlayerBullet() {
     // ショット音再生
-    // OPアニメーション中はSEを鳴らさない
+    // OPアニメーション中とボス撃破中はSEを鳴らさない
     if (sounds.shot && gameState === GameState.PLAYING) {
         sounds.shot.currentTime = 0;
         sounds.shot.play().catch(e => {});
@@ -516,6 +518,18 @@ function shootPlayerBullet() {
                 height: 8 // 2倍
             });
         }
+    } else if (player.weapon === '7way') {
+        // 7way弾
+        for (let i = -3; i <= 3; i++) {
+            playerBullets.push({
+                x: player.x + player.width / 2,
+                y: player.y,
+                vx: GAME_CONFIG.bulletSpeed,
+                vy: i * 1.2,
+                width: 20, // 2倍
+                height: 8 // 2倍
+            });
+        }
     }
     
     // 付属機からも発射
@@ -548,6 +562,17 @@ function shootPlayerBullet() {
                         y: attachment.y,
                         vx: GAME_CONFIG.bulletSpeed,
                         vy: i * 1.5,
+                        width: 20,
+                        height: 8
+                    });
+                }
+            } else if (player.weapon === '7way') {
+                for (let i = -3; i <= 3; i++) {
+                    playerBullets.push({
+                        x: attachment.x + 40,
+                        y: attachment.y,
+                        vx: GAME_CONFIG.bulletSpeed,
+                        vy: i * 1.2,
                         width: 20,
                         height: 8
                     });
@@ -605,6 +630,18 @@ function updateAttachments() {
                             y: attachment.y,
                             vx: Math.cos(angle + i * 0.15) * 3,
                             vy: Math.sin(angle + i * 0.15) * 3,
+                            width: 16,
+                            height: 16
+                        });
+                    }
+                } else if (player.weapon === '7way') {
+                    // ひよこ7way
+                    for (let i = -3; i <= 3; i++) {
+                        enemyBullets.push({
+                            x: attachment.x,
+                            y: attachment.y,
+                            vx: Math.cos(angle + i * 0.12) * 3,
+                            vy: Math.sin(angle + i * 0.12) * 3,
                             width: 16,
                             height: 16
                         });
@@ -697,7 +734,7 @@ function updateEnemies() {
                             if (enemy.shootPaused) {
                                 // 射撃再開
                                 enemy.shootPaused = false;
-                                enemy.shootPattern = 180; // 3秒射撃
+                                enemy.shootPattern = 60; // 1秒射撃
                             } else {
                                 // 射撃停止
                                 enemy.shootPaused = true;
@@ -759,21 +796,26 @@ function shootEnemyBullet(enemy) {
                 height: 16 // 横長でビーム感
             });
         } else if (enemy.type === 'boss3') {
-            // ステージ3ボス：画面を覆う弾幕（1箇所だけ隙間）
-            const safeZone = Math.floor(Math.random() * 10) + 5; // 5〜14の位置に隙間
-            for (let i = 0; i < 20; i++) {
-                // 隙間を1つ作る
-                if (i === safeZone) continue;
-                
-                const y = GAME_CONFIG.height / 20 * i + 50;
-                enemyBullets.push({
-                    x: enemy.x - enemy.width / 2,
-                    y: y,
-                    vx: -6, // 左へ流れる
-                    vy: 0,
-                    width: 32,
-                    height: 32
-                });
+            // ステージ3ボス：画面を覆う弾幕（30列、1箇所だけ隙間）
+            const bulletRows = 40; // 弾の行数を増やす（画面を埋め尽くす）
+            const safeZone = Math.floor(Math.random() * (bulletRows - 4)) + 2; // 隙間の位置
+            
+            // 30列の弾を生成
+            for (let col = 0; col < 30; col++) {
+                for (let row = 0; row < bulletRows; row++) {
+                    // 隙間を2行分作る
+                    if (row === safeZone || row === safeZone + 1) continue;
+                    
+                    const y = GAME_CONFIG.height / bulletRows * row + 20;
+                    enemyBullets.push({
+                        x: enemy.x - enemy.width / 2 + col * 20, // 列ごとに少しずらす（間隔を狭く）
+                        y: y,
+                        vx: -2, // スローに流れる（6→2に変更）
+                        vy: 0,
+                        width: 16, // 半分の大きさ
+                        height: 16 // 半分の大きさ
+                    });
+                }
             }
         }
     } else {
@@ -806,8 +848,11 @@ function updateItems() {
 function collectItem(item) {
     // アイテム取得エフェクト
     if (item.type === 'sunagimo') {
-        // 砂肝：3Way弾、2個目で5Way弾
-        if (player.weapon === '3way') {
+        // 砂肝：3Way→5Way→7Way
+        if (player.weapon === '5way') {
+            player.weapon = '7way';
+            showItemAnimation('sunagimo', '砂肝三つ目！！7WAY最強！！');
+        } else if (player.weapon === '3way') {
             player.weapon = '5way';
             showItemAnimation('sunagimo', '砂肝もういっちょう！5WAY！！');
         } else {
@@ -928,9 +973,9 @@ function spawnEnemies() {
         });
     }
     
-    // アイテムランダム生成
-    if (!bossSpawned && !bossEntering && frameCount % 300 === 0) {
-        const itemTypes = ['sunagimo', 'yoshimin', 'hiyoko', 'ika'];
+    // アイテムランダム生成（通常面）
+    if (!bossSpawned && !bossEntering && frameCount % 180 === 0) { // 3秒ごとに変更（出現率アップ）
+        const itemTypes = ['sunagimo', 'sunagimo', 'yoshimin', 'hiyoko', 'ika']; // 砂肝の確率を上げる
         const type = itemTypes[Math.floor(Math.random() * itemTypes.length)];
         
         items.push({
@@ -939,6 +984,21 @@ function spawnEnemies() {
             y: Math.random() * (GAME_CONFIG.height - 100) + 50,
             width: 80, // 2倍
             height: 80 // 2倍
+        });
+    }
+    
+    // ステージ2ボス戦中の特別アイテム生成
+    if (bossSpawned && currentStage === 2 && !bossEntering && frameCount % 300 === 0) { // 5秒ごと
+        // 砂肝かよしみんのどちらかを出す
+        const specialItemTypes = ['sunagimo', 'yoshimin'];
+        const type = specialItemTypes[Math.floor(Math.random() * specialItemTypes.length)];
+        
+        items.push({
+            type: type,
+            x: GAME_CONFIG.width + 50,
+            y: Math.random() * (GAME_CONFIG.height - 100) + 50,
+            width: 80,
+            height: 80
         });
     }
 }
@@ -974,12 +1034,12 @@ function spawnBoss() {
     } else if (currentStage === 2) {
         boss = {
             type: 'boss2',
-            x: GAME_CONFIG.width + 640, // 画面外から登場（十分な距離を確保）
+            x: GAME_CONFIG.width + 1200, // 画面外から登場（さらに大きいので更に遠くから）
             y: GAME_CONFIG.height / 2,
             vx: -5, // 左に移動（速く移動）
             vy: 0,
-            width: 640,
-            height: 480,
+            width: 1600, // さらに大きく（元の2.5倍）
+            height: 1200, // さらに大きく（元の2.5倍）
             hp: 1000, // 1000発で撃破
             maxHp: 1000, // 表示用
             shootCooldown: 0,
@@ -988,8 +1048,8 @@ function spawnBoss() {
             sprite: 'enemy4',
             timer: 3600, // 60秒
             entranceTimer: 120, // 2秒間は無敵
-            stopX: GAME_CONFIG.width - 520, // 停止位置を明示的に設定（画像が完全に表示されるように）
-            shootPattern: 180, // 3秒射撃（180フレーム）
+            stopX: GAME_CONFIG.width - 900, // 停止位置を明示的に設定（さらに大きいので調整）
+            shootPattern: 60, // 1秒射撃（60フレーム）
             shootPaused: false // 射撃停止フラグ
         };
         currentBGM = sounds.bgmBoss2;
@@ -1008,8 +1068,8 @@ function spawnBoss() {
             hitEnabled: false, // 最初は無敵
             isBoss: true,
             sprite: 'main',
-            entranceTimer: 120, // 2秒間は無敵
-            stopX: GAME_CONFIG.width - 600 // 停止位置を明示的に設定（画像が完全に表示されるように）
+            entranceTimer: 300, // 5秒間は無敵
+            stopX: GAME_CONFIG.width - 900 // 停止位置を明示的に設定（もっと左側に表示）
         };
         currentBGM = sounds.bgmBoss3;
     }
@@ -1044,8 +1104,20 @@ function checkCollisions() {
                         // ボス撃破
                         stopBGM();
                         
+                        // ボス撃破状態に移行（ショットSEを止めるため）
+                        gameState = GameState.BOSS_DEFEATED;
+                        
+                        // ボスの座標を保存
+                        const bossX = enemy.x;
+                        const bossY = enemy.y;
+                        const bossWidth = enemy.width;
+                        const bossHeight = enemy.height;
+                        
+                        // 敵配列から削除
+                        enemies.splice(j, 1);
+                        
                         // ボス大爆発
-                        createBossExplosion(enemy.x, enemy.y, enemy.width, enemy.height);
+                        createBossExplosion(bossX, bossY, bossWidth, bossHeight);
                         
                         // ボス大爆発SE再生
                         if (sounds.bossBigExplosion) {
@@ -1053,10 +1125,7 @@ function checkCollisions() {
                             sounds.bossBigExplosion.play().catch(e => {});
                         }
                         
-                        // 敵配列から削除
-                        enemies.splice(j, 1);
-                        
-                        // 少し遅延してから次のステージへ
+                        // 遅延してから次のステージへ（2.5秒後）
                         setTimeout(() => {
                             if (currentStage < 3) {
                                 currentStage++;
@@ -1067,7 +1136,7 @@ function checkCollisions() {
                                 gameState = GameState.ENDING;
                                 document.getElementById('endingScreen').style.display = 'flex';
                             }
-                        }, 1500); // 1.5秒後
+                        }, 2500); // 2.5秒後
                         
                         break; // ボス処理完了
                     }
@@ -1100,14 +1169,36 @@ function checkCollisions() {
 }
 
 function checkCollision(a, b) {
-    // 当たり判定をもっとシビアに（プレイヤーのみ小さく）
-    const aPadding = a === player ? 40 : 0;
-    const bPadding = b === player ? 40 : 0;
+    // プレイヤーの当たり判定を小さくする
+    let aLeft = a.x - a.width / 2;
+    let aRight = a.x + a.width / 2;
+    let aTop = a.y - a.height / 2;
+    let aBottom = a.y + a.height / 2;
     
-    return a.x - a.width / 2 + aPadding < b.x + b.width / 2 - bPadding &&
-           a.x + a.width / 2 - aPadding > b.x - b.width / 2 + bPadding &&
-           a.y - a.height / 2 + aPadding < b.y + b.height / 2 - bPadding &&
-           a.y + a.height / 2 - aPadding > b.y - b.height / 2 + bPadding;
+    let bLeft = b.x - b.width / 2;
+    let bRight = b.x + b.width / 2;
+    let bTop = b.y - b.height / 2;
+    let bBottom = b.y + b.height / 2;
+    
+    // プレイヤーの場合、当たり判定を小さくする
+    const padding = 40;
+    if (a === player) {
+        aLeft += padding;
+        aRight -= padding;
+        aTop += padding;
+        aBottom -= padding;
+    }
+    if (b === player) {
+        bLeft += padding;
+        bRight -= padding;
+        bTop += padding;
+        bBottom -= padding;
+    }
+    
+    return aLeft < bRight &&
+           aRight > bLeft &&
+           aTop < bBottom &&
+           aBottom > bTop;
 }
 
 function playerHit() {
