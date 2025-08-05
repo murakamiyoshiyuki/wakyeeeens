@@ -258,8 +258,28 @@ function handleClick(e) {
     }
 }
 
+// iOS用音声初期化
+function initializeAudioForIOS() {
+    // すべての音声ファイルを音量0で一度再生してiOSの制限を回避
+    for (const key in sounds) {
+        if (sounds[key]) {
+            sounds[key].volume = 0;
+            sounds[key].play().then(() => {
+                sounds[key].pause();
+                sounds[key].currentTime = 0;
+                sounds[key].volume = 1;
+            }).catch(e => {
+                console.log(`Failed to initialize ${key}:`, e);
+            });
+        }
+    }
+}
+
 // ゲーム制御
 function startGame() {
+    // iOS対策：すべての音声を初期化
+    initializeAudioForIOS();
+    
     gameState = GameState.OP_ANIMATION;
     currentStage = 1;
     score = 0;
@@ -1107,7 +1127,15 @@ function spawnBoss() {
     
     if (currentBGM) {
         currentBGM.loop = true;
-        currentBGM.play().catch(e => console.log('Boss BGM playback failed:', e));
+        // iOS対策：再生前にcurrentTimeをリセット
+        currentBGM.currentTime = 0;
+        currentBGM.play().catch(e => {
+            console.log('Boss BGM playback failed:', e);
+            // 再試行
+            setTimeout(() => {
+                currentBGM.play().catch(err => console.log('Boss BGM retry failed:', err));
+            }, 100);
+        });
     }
     
     if (boss) {
