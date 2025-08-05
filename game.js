@@ -176,12 +176,20 @@ function setupEventListeners() {
         if (gameState === GameState.TITLE) {
             startGame();
         }
-    });
+    }, { passive: false });
     titleScreen.addEventListener('click', () => {
         if (gameState === GameState.TITLE) {
             startGame();
         }
     });
+    
+    // iOS Safari用の追加対策
+    document.addEventListener('touchstart', (e) => {
+        if (gameState === GameState.TITLE && e.target.closest('#titleScreen')) {
+            e.preventDefault();
+            startGame();
+        }
+    }, { passive: false });
 }
 
 // 入力処理
