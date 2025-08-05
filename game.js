@@ -74,7 +74,8 @@ const imageSources = {
     enemy4: 'sozai/png/敵4.png',
     enemy5: 'sozai/png/敵5.png',
     enemy6: 'sozai/png/敵6.png',
-    time: 'sozai/png/時間.jpg'
+    time: 'sozai/png/時間.jpg',
+    boss3: 'sozai/png/boss3.png'
 };
 
 // 音声リソース
@@ -696,7 +697,8 @@ function updateEnemies() {
                     enemy.hitEnabled = true;
                     if (bossEntering) {
                         bossEntering = false; // ボス登場完了
-                        bossBattleTimer = 300; // 5秒間（60fps）
+                        // ステージ3の場合は10秒、それ以外は5秒
+                        bossBattleTimer = (enemy.type === 'boss3') ? 600 : 300;
                         console.log('Boss entrance complete, battle timer started');
                     }
                 }
@@ -1034,12 +1036,12 @@ function spawnBoss() {
     } else if (currentStage === 2) {
         boss = {
             type: 'boss2',
-            x: GAME_CONFIG.width + 1200, // 画面外から登場（さらに大きいので更に遠くから）
+            x: GAME_CONFIG.width + 640, // 画面外から登場（十分な距離を確保）
             y: GAME_CONFIG.height / 2,
             vx: -5, // 左に移動（速く移動）
             vy: 0,
-            width: 1600, // さらに大きく（元の2.5倍）
-            height: 1200, // さらに大きく（元の2.5倍）
+            width: 640,
+            height: 480,
             hp: 1000, // 1000発で撃破
             maxHp: 1000, // 表示用
             shootCooldown: 0,
@@ -1048,7 +1050,7 @@ function spawnBoss() {
             sprite: 'enemy4',
             timer: 3600, // 60秒
             entranceTimer: 120, // 2秒間は無敵
-            stopX: GAME_CONFIG.width - 900, // 停止位置を明示的に設定（さらに大きいので調整）
+            stopX: GAME_CONFIG.width - 520, // 停止位置を明示的に設定（画像が完全に表示されるように）
             shootPattern: 60, // 1秒射撃（60フレーム）
             shootPaused: false // 射撃停止フラグ
         };
@@ -1067,7 +1069,7 @@ function spawnBoss() {
             shootCooldown: 0,
             hitEnabled: false, // 最初は無敵
             isBoss: true,
-            sprite: 'main',
+            sprite: 'boss3',
             entranceTimer: 300, // 5秒間は無敵
             stopX: GAME_CONFIG.width - 900 // 停止位置を明示的に設定（もっと左側に表示）
         };
@@ -1442,12 +1444,23 @@ function renderEnemies() {
         
         // 敵画像描画
         if (images[enemy.sprite]) {
-            ctx.drawImage(images[enemy.sprite],
-                enemy.x - enemy.width / 2,
-                enemy.y - enemy.height / 2,
-                enemy.width,
-                enemy.height
-            );
+            // ステージ2ボスの「あわてない画像」は大きく表示
+            if (enemy.type === 'boss2' && enemy.sprite === 'enemy4') {
+                const scale = 2; // 2倍の大きさで表示
+                ctx.drawImage(images[enemy.sprite],
+                    enemy.x - (enemy.width * scale) / 2,
+                    enemy.y - (enemy.height * scale) / 2,
+                    enemy.width * scale,
+                    enemy.height * scale
+                );
+            } else {
+                ctx.drawImage(images[enemy.sprite],
+                    enemy.x - enemy.width / 2,
+                    enemy.y - enemy.height / 2,
+                    enemy.width,
+                    enemy.height
+                );
+            }
         } else {
             ctx.fillStyle = '#f0f';
             ctx.fillRect(enemy.x - enemy.width / 2, enemy.y - enemy.height / 2, enemy.width, enemy.height);
@@ -1534,7 +1547,9 @@ function renderEffects() {
             ctx.fillText(effect.text, effect.x, effect.y);
         } else if (effect.type === 'image' && images[effect.image]) {
             ctx.globalAlpha = Math.min(1, effect.life / 30);
-            const size = 300 * effect.scale;
+            // 時間.jpgは大きく表示
+            const baseSize = effect.image === 'time' ? 600 : 300;
+            const size = baseSize * effect.scale;
             ctx.drawImage(images[effect.image],
                 effect.x - size / 2,
                 effect.y - size / 2,
