@@ -55,6 +55,8 @@ let effects = [];
 let background = { x: 0 };
 let stageTimer = 0;
 let bossSpawned = false;
+let bossEntering = false; // ボス登場中フラグ
+let bossBattleTimer = 0; // ボス戦タイマー
 
 // 画像リソース
 const images = {};
@@ -278,6 +280,7 @@ function clearGameObjects() {
     effects = [];
     stageTimer = 0;
     bossSpawned = false;
+    bossEntering = false;
 }
 
 // OPアニメーション
@@ -432,6 +435,7 @@ function update() {
     stageTimer++;
     if (stageTimer >= GAME_CONFIG.stageDuration && !bossSpawned) {
         bossSpawned = true;
+        console.log('Boss spawning for stage', currentStage);
         showWarning(false);
     }
 }
@@ -453,8 +457,8 @@ function updatePlayer() {
         player.invincible--;
     }
     
-    // 自動ショット
-    if (frameCount % 5 === 0) {
+    // 自動ショット（ボス登場中とボス戦開始10秒間は停止）
+    if (frameCount % 20 === 0 && !bossEntering && bossBattleTimer === 0) { // 発射間隔を1/4に
         shootPlayerBullet();
     }
     
@@ -587,6 +591,26 @@ function updateEnemies() {
     enemies = enemies.filter(enemy => {
         enemy.x += enemy.vx;
         enemy.y += enemy.vy;
+        
+        // ボスの登場処理
+        if (enemy.isBoss && enemy.entranceTimer !== undefined) {
+            if (enemy.entranceTimer > 0) {
+                enemy.entranceTimer--;
+                // 登場位置に到達したら停止
+                if (enemy.x <= GAME_CONFIG.width - 400) {
+                    enemy.x = GAME_CONFIG.width - 400;
+                    enemy.vx = 0;
+                }
+            } else {
+                // 登場完了後に当たり判定を有効化
+                enemy.hitEnabled = true;
+                if (bossEntering) {
+                    bossEntering = false; // ボス登場完了
+                    bossBattleTimer = 600; // 10秒間（60fps）
+                    console.log('Boss entrance complete, battle timer started');
+                }
+            }
+        }
         
         // 敵の弾発射
         if (enemy.shootCooldown > 0) {
@@ -752,8 +776,8 @@ function updateEffects() {
 }
 
 function spawnEnemies() {
-    if (!bossSpawned && frameCount % 60 === 0) {
-        // 通常敵のみ
+    if (!bossSpawned && !bossEntering && frameCount % 60 === 0) {
+        // ボス登場中は敵を出現させない
         enemies.push({
             type: 'normal',
             x: GAME_CONFIG.width + 50,
@@ -787,59 +811,65 @@ function spawnEnemies() {
 function spawnBoss() {
     let boss;
     
+    console.log('Spawning boss for stage', currentStage);
+    bossEntering = true; // ボス登場開始
+    
     // BGM切り替え
     stopBGM();
     
     if (currentStage === 1) {
         boss = {
             type: 'boss1',
-            x: GAME_CONFIG.width - 400,
+            x: GAME_CONFIG.width + 320, // 画面外から登場
             y: GAME_CONFIG.height / 2,
-            vx: 0,
+            vx: -2, // 左に移動
             vy: 0,
             width: 640,
             height: 480,
             hp: 2,
             maxHp: 10000, // 表示用
             shootCooldown: 0,
-            hitEnabled: true,
+            hitEnabled: false, // 最初は無敵
             isBoss: true,
-            sprite: 'enemy4'
+            sprite: 'enemy4',
+            entranceTimer: 120 // 2秒間は無敵
         };
         currentBGM = sounds.bgmBoss1;
     } else if (currentStage === 2) {
         boss = {
             type: 'boss2',
-            x: GAME_CONFIG.width - 400,
+            x: GAME_CONFIG.width + 320, // 画面外から登場
             y: GAME_CONFIG.height / 2,
-            vx: 0,
+            vx: -2, // 左に移動
             vy: 0,
             width: 640,
             height: 480,
             hp: 30,
             maxHp: 1000, // 表示用
             shootCooldown: 0,
-            hitEnabled: true,
+            hitEnabled: false, // 最初は無敵
             isBoss: true,
             sprite: 'enemy4',
-            timer: 3600 // 60秒
+            timer: 3600, // 60秒
+            entranceTimer: 120 // 2秒間は無敵
         };
         currentBGM = sounds.bgmBoss2;
     } else if (currentStage === 3) {
         boss = {
             type: 'boss3',
-            x: GAME_CONFIG.width - 400,
+            x: GAME_CONFIG.width + 400, // 画面外から登場
             y: GAME_CONFIG.height / 2,
-            vx: 0,
+            vx: -2, // 左に移動
             vy: 0,
             width: 800,
             height: 600,
             hp: 3,
             maxHp: 3,
             shootCooldown: 0,
-            hitEnabled: true,
+            hitEnabled: false, // 最初は無敵
             isBoss: true,
-            sprite: 'main'
+            sprite: 'main',
+            entranceTimer: 120 // 2秒間は無敵
         };
         currentBGM = sounds.bgmBoss3;
     }
@@ -849,7 +879,10 @@ function spawnBoss() {
         currentBGM.play().catch(e => console.log('Boss BGM playback failed:', e));
     }
     
-    enemies.push(boss);
+    if (boss) {
+        enemies.push(boss);
+        console.log('Boss added:', boss);
+    }
 }
 
 function checkCollisions() {
@@ -910,8 +943,8 @@ function checkCollisions() {
 
 function checkCollision(a, b) {
     // 当たり判定をもっとシビアに（プレイヤーのみ小さく）
-    const aPadding = a === player ? -10 : 0;
-    const bPadding = b === player ? -10 : 0;
+    const aPadding = a === player ? -30 : 0;
+    const bPadding = b === player ? -30 : 0;
     
     return a.x - a.width / 2 + aPadding < b.x + b.width / 2 - bPadding &&
            a.x + a.width / 2 - aPadding > b.x - b.width / 2 + bPadding &&
@@ -1004,7 +1037,7 @@ function renderHitboxes() {
     ctx.globalAlpha = 0.5;
     
     // プレイヤーの当たり判定
-    const playerPadding = 10;
+    const playerPadding = 30; // checkCollisionと同じ値に
     ctx.strokeRect(
         player.x - player.width / 2 + playerPadding,
         player.y - player.height / 2 + playerPadding,
