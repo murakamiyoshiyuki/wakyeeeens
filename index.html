@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ワキーンの逆襲</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+        <div id="titleScreen" class="screen">
+            <h1>ワキーンの逆襲</h1>
+            <p>Press ENTER to START</p>
+            <p class="mobile-text">Tap to START</p>
+        </div>
+        <div id="gameOverScreen" class="screen" style="display: none;">
+            <h2>GAME OVER</h2>
+            <p class="death-cry">ぎゃああああ</p>
+            <p>Press ENTER to Return</p>
+        </div>
+        <div id="endingScreen" class="screen" style="display: none;">
+            <p>クリアできると思ってなかったらエンディング用意してないよ。</p>
+        </div>
+        <div id="pauseScreen" class="screen" style="display: none;">
+            <h2>PAUSE</h2>
+            <p>Press P to Resume</p>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

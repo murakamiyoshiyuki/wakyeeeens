@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Animation Test</title>
+    <style>
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #testCanvas {
+            border: 1px solid #fff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="testCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('testCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Test animation
+        let scale = 0.1;
+        let life = 120;
+        
+        const img = new Image();
+        img.src = 'sozai/png/砂肝.jpg';
+        
+        function animate() {
+            ctx.clearRect(0, 0, 800, 600);
+            
+            if (life > 0) {
+                scale = Math.min(scale + 0.05, 1);
+                life--;
+                
+                const size = 400 * scale;
+                ctx.globalAlpha = Math.min(1, life / 30);
+                
+                ctx.drawImage(img, 
+                    400 - size / 2,
+                    300 - size / 2 - 100,
+                    size,
+                    size
+                );
+                
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 4;
+                ctx.font = `${48 * scale}px bold monospace`;
+                ctx.textAlign = 'center';
+                ctx.strokeText('砂肝いっちょう！おまち！！', 400, 400);
+                ctx.fillText('砂肝いっちょう！おまち！！', 400, 400);
+                
+                ctx.globalAlpha = 1;
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        img.onload = animate;
+    </script>
+</body>
+</html>
