@@ -21,7 +21,7 @@ const GAME_CONFIG = {
     maxBullets: 120,
     maxEffects: 120,
     stageDuration: 1800, // 30秒 (60fps)
-    showHitboxes: true // 当たり判定を可視化
+    showHitboxes: false // 当たり判定を非表示
 };
 
 // グローバル変数
@@ -276,6 +276,8 @@ function clearGameObjects() {
     enemyBullets = [];
     items = [];
     effects = [];
+    stageTimer = 0;
+    bossSpawned = false;
 }
 
 // OPアニメーション
@@ -670,8 +672,8 @@ function collectItem(item) {
                 type: 'yoshimin',
                 x: player.x,
                 y: player.y,
-                width: 80, // 2倍
-                height: 80 // 2倍
+                width: 160, // 4倍
+                height: 160 // 4倍
             });
             showItemAnimation('yoshimin', '地球に凸みん！');
             if (sounds.powerUp) {
